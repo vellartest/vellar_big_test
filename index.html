@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vellar</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif;
+         background:#0d1117; color:#c9d1d9; }
+  header { background:#161b22; padding:10px 16px; display:flex;
+           gap:12px; align-items:center; border-bottom:1px solid #30363d;
+           flex-wrap: wrap; }
+  header h1 { margin:0; font-size:17px; color:#58a6ff; }
+  .stat { background:#21262d; padding:5px 10px; border-radius:6px; font-size:12px; }
+  main { display:grid; grid-template-columns: 200px 1fr 300px; gap:12px; padding:12px; }
+  nav { display:flex; flex-direction:column; gap:5px; }
+  nav button { background:#21262d; color:#c9d1d9; border:1px solid #30363d;
+               padding:9px 11px; border-radius:6px; cursor:pointer;
+               text-align:left; font-size:13px; }
+  nav button:hover { background:#30363d; }
+  nav button.active { background:#1f6feb; border-color:#1f6feb; color:#fff; }
+  .panel { background:#161b22; border:1px solid #30363d; border-radius:8px;
+           padding:14px; }
+  .panel h2 { margin:0 0 10px; font-size:14px; color:#58a6ff; }
+  .panel h3 { margin:14px 0 6px; font-size:13px; color:#7ee787; }
+  .row { display:flex; justify-content:space-between; align-items:center;
+         gap:8px; padding:6px 0; border-bottom:1px dashed #21262d;
+         font-size:13px; flex-wrap: wrap; }
+  .row:last-child { border-bottom:none; }
+  .val { color:#7ee787; }
+  .muted { color:#8b949e; font-size:11px; }
+  button.act { background:#238636; border:none; color:#fff; padding:4px 10px;
+               border-radius:4px; cursor:pointer; font-size:12px; }
+  button.act:hover { background:#2ea043; }
+  button.danger { background:#da3633; }
+  button.danger:hover { background:#f85149; }
+  button.blue { background:#1f6feb; }
+  button.blue:hover { background:#388bfd; }
+  input, select { background:#0d1117; color:#c9d1d9; border:1px solid #30363d;
+                  border-radius:4px; padding:5px 8px; font-size:13px; }
+  .col { display:flex; gap:6px; margin:6px 0; flex-wrap: wrap; }
+  .col > * { flex:1 1 auto; min-width: 100px; }
+  .log { max-height:460px; overflow-y:auto; font-size:12px; color:#8b949e; }
+  .log div { padding:3px 0; border-bottom:1px dashed #21262d; }
+  .badge { font-size:10px; background:#21262d; padding:2px 6px;
+           border-radius:10px; margin-left:4px; color:#7ee787; }
+  .login { max-width:380px; margin:80px auto; padding:24px;
+           background:#161b22; border:1px solid #30363d;
+           border-radius:10px; text-align:center; }
+  .login h1 { color:#58a6ff; margin:0 0 8px; }
+  .login input { margin:8px 0; padding:10px; font-size:15px; width:100%; }
+  .login button { padding:10px 20px; background:#238636; color:white;
+                  border:none; border-radius:6px; cursor:pointer;
+                  font-size:14px; margin:4px; }
+  .login button.blue { background:#1f6feb; }
+  .toast { position:fixed; top:16px; right:16px; background:#1f6feb; color:#fff;
+           padding:10px 14px; border-radius:6px; opacity:0;
+           transition:opacity .3s; pointer-events:none; z-index:100;
+           font-size:13px; max-width:70vw; }
+  .toast.show { opacity:1; }
+  .toast.err { background:#da3633; }
+  .card { border:1px solid #30363d; border-radius:6px; padding:10px;
+          margin-bottom:8px; background:#0d1117; }
+  .flex { display:flex; justify-content:space-between; align-items:center;
+          gap:8px; flex-wrap: wrap; }
+  @media (max-width: 860px) {
+    main { grid-template-columns: 1fr; }
+    nav { flex-direction: row; flex-wrap: wrap; }
+    nav button { flex: 1 1 45%; text-align: center; }
+    header { padding:8px 12px; }
+    header .stat { font-size:11px; padding:4px 8px; }
+    .log { max-height: 220px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="login" class="login">
+  <h1>🌐 Vellar</h1>
+  <p class="muted">Цифровое государство с живой экономикой</p>
+  <input id="nameInput" placeholder="Имя (до 24 символов)" maxlength="24">
+  <input id="passInput" type="password" placeholder="Пароль (мин. 4)">
+  <div>
+    <button onclick="doAuth('login')">Войти</button>
+    <button class="blue" onclick="doAuth('register')">Регистрация</button>
+  </div>
+  <p id="authErr" class="muted" style="color:#f85149"></p>
+</div>
+
+<div id="app" style="display:none">
+  <header>
+    <h1>🌐 Vellar</h1>
+    <div class="stat">👤 <b id="hName">-</b></div>
+    <div class="stat">💰 <b id="hBalance">0</b></div>
+    <div class="stat">🕒 Тик <b id="hTick">0</b></div>
+    <div class="stat">🏛 <b id="hTreasury">0</b></div>
+  </header>
+  <main>
+    <nav>
+      <button data-tab="profile" class="active">📊 Профиль</button>
+      <button data-tab="territories">🏞 Территории</button>
+      <button data-tab="market">📜 Рынок</button>
+      <button data-tab="state">🏛 Государство</button>
+      <button data-tab="bank">🏦 Банк</button>
+      <button data-tab="quests">✅ Квесты</button>
+      <button data-tab="raids">⚔ Рейды</button>
+      <button data-tab="alliance">🤝 Альянс</button>
+      <button data-tab="analytics">📈 Аналитика</button>
+      <button data-tab="bots">🤖 ИИ-граждане</button>
+    </nav>
+    <section id="content" class="panel"></section>
+    <aside class="panel">
+      <h2>📰 Лента</h2>
+      <div id="log" class="log"></div>
+    </aside>
+  </main>
+  <div id="toast" class="toast"></div>
+</div>
+
+<script>
+let state = null, myName = null, ws = null, tab = "profile";
+const TOKEN_KEY = "vellar_token";
+
+async function doAuth(kind) {
+  const name = document.getElementById("nameInput").value.trim();
+  const password = document.getElementById("passInput").value;
+  const err = document.getElementById("authErr");
+  err.textContent = "";
+  if (!name || password.length < 4) { err.textContent = "Проверьте имя и пароль"; return; }
+  try {
+    const r = await fetch(`/api/${kind}`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({name, password})
+    });
+    const d = await r.json();
+    if (!d.ok) { err.textContent = d.error || "Ошибка"; return; }
+    localStorage.setItem(TOKEN_KEY, d.token);
+    myName = d.name;
+    connect(d.token);
+  } catch(e) { err.textContent = "Сеть недоступна"; }
+}
+
+function connect(token) {
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => ws.send(JSON.stringify({token}));
+  ws.onmessage = e => handleMsg(JSON.parse(e.data));
+  ws.onclose = () => toast("Соединение закрыто", true);
+}
+
+function handleMsg(m) {
+  if (m.type === "joined") {
+    document.getElementById("login").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    document.getElementById("hName").textContent = m.name;
+    myName = m.name;
+  } else if (m.type === "state") {
+    state = m.data;
+    if (!myName) myName = state.you;
+    render();
+  } else if (m.type === "info") toast(m.msg);
+  else if (m.type === "error") toast(m.msg, true);
+}
+
+function send(action, params = {}) {
+  if (!ws || ws.readyState !== 1) return;
+  ws.send(JSON.stringify({action, ...params}));
+}
+
+function toast(msg, isErr=false) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast show" + (isErr ? " err" : "");
+  clearTimeout(t._tm);
+  t._tm = setTimeout(() => t.className = "toast", 2600);
+}
+
+document.querySelectorAll("nav button").forEach(b => {
+  b.onclick = () => {
+    tab = b.dataset.tab;
+    document.querySelectorAll("nav button").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    render();
+  };
+});
+
+function rname(k) { return state.resources[k].name; }
+function myP() { return state.players[myName] || {}; }
+
+function render() {
+  if (!state) return;
+  document.getElementById("hBalance").textContent = myP().balance ?? 0;
+  document.getElementById("hTick").textContent = state.tick;
+  document.getElementById("hTreasury").textContent = state.state.treasury;
+
+  const c = document.getElementById("content");
+  c.innerHTML = ({
+    profile: viewProfile, territories: viewTerritories, market: viewMarket,
+    state: viewState, bank: viewBank, quests: viewQuests, raids: viewRaids,
+    alliance: viewAlliance, analytics: viewAnalytics, bots: viewBots
+  })[tab]?.() || "";
+
+  document.getElementById("log").innerHTML =
+    (state.log || []).slice().reverse().map(x => `<div>${x}</div>`).join("");
+}
+
+function viewProfile() {
+  const p = myP();
+  let h = `<h2>Мой профиль</h2>
+    <div class="row"><span>Баланс</span><span class="val">${p.balance} 💰</span></div>
+    <div class="row"><span>Работа</span><span class="val">${p.job ? "#"+p.job+" ("+p.salary+"💰/тик)" : "нет"}</span></div>
+    <div class="row"><span>Альянс</span><span class="val">${p.alliance || "—"}</span></div>
+    <h3>Ресурсы</h3>`;
+  const res = Object.entries(p.resources || {});
+  h += res.length
+    ? res.map(([k,a]) => `<div class="row"><span>${rname(k)}</span><span class="val">${a}</span></div>`).join("")
+    : `<div class="row"><span>Пусто</span></div>`;
+  if (p.territories.length) {
+    h += `<h3>Мои территории</h3>`;
+    p.territories.forEach(tid => {
+      const t = state.territories.find(x => x.id === tid);
+      h += `<div class="card">
+        <div class="flex"><b>#${t.id} ${t.name}</b>
+          <span class="badge">${t.spec_name} ×1.5</span></div>
+        ${t.building ? `<div class="muted">🏗 ${t.building_info.name} — ${t.building_info.desc}</div>` : ""}`;
+      t.businesses.forEach((b,i) => {
+        h += `<div class="flex" style="margin-top:6px">
+          <span>${b.name} lvl${b.level} • ${b.workers.length}/${b.max_workers} 👷</span>
+          <button class="act" onclick="send('upgrade',{tid:${t.id},idx:${i}})">⬆ ${b.upgrade_cost}💰</button>
+        </div>`;
+      });
+      if (!t.building) {
+        h += `<div class="col" style="margin-top:6px">
+          ${Object.entries(state.buildings).map(([k,v]) =>
+            `<button class="act blue" onclick="send('build',{tid:${t.id},building:'${k}'})"
+              title="${v.desc}">🏗 ${v.name} ${v.cost}💰</button>`).join("")}
+        </div>`;
+      }
+      h += `</div>`;
+    });
+  }
+  h += `<button class="act danger" style="margin-top:10px" onclick="send('quit_job')">Уволиться</button>`;
+  return h;
+}
+
+function viewTerritories() {
+  let h = `<h2>Территории Велара</h2>`;
+  state.territories.forEach(t => {
+    h += `<div class="row">
+      <div>
+        #${t.id} <b>${t.name}</b> <span class="badge">${t.spec_name} ×1.5</span>
+        <div class="muted">Владелец: ${t.owner || "—"}${t.building ? " • 🏗 "+t.building_info.name : ""}</div>
+      </div>
+      <div>${!t.owner
+        ? `<button class="act" onclick="send('buy_territory',{tid:${t.id}})">Купить ${t.price}💰</button>`
+        : t.owner === myName ? `<span class="badge">ваша</span>` : ``}</div>
+    </div>`;
+  });
+  return h;
+}
+
+function viewMarket() {
+  let h = `<h2>Курсы</h2>`;
+  Object.entries(state.resources).forEach(([k,r]) => {
+    const arrow = r.price > r.base ? "↑" : r.price < r.base ? "↓" : "=";
+    const color = r.price > r.base ? "#f85149" : r.price < r.base ? "#7ee787" : "#c9d1d9";
+    h += `<div class="row"><span>${r.name}</span>
+      <span style="color:${color}">${r.price}💰 ${arrow} <span class="muted">(база ${r.base})</span></span></div>`;
+  });
+  h += `<h3>Ордера игроков</h3>`;
+  h += state.market.length ? state.market.map(o => `
+    <div class="row">
+      <span>#${o.id} <b>${rname(o.resource)}</b> ×${o.amount} по ${o.price_per_unit}💰
+        <span class="muted">(${o.seller})</span></span>
+      <span>${o.seller === myName
+        ? `<button class="act danger" onclick="send('cancel_order',{oid:${o.id}})">Снять</button>`
+        : `<button class="act" onclick="promptBuy(${o.id})">Купить</button>`}</span>
+    </div>`).join("") : `<div class="row"><span class="muted">Пусто</span></div>`;
+
+  h += `<h3>🏛 Госзаказы (цена +20%)</h3>`;
+  h += state.state_orders.length ? state.state_orders.map(so => `
+    <div class="row">
+      <span>#${so.id} <b>${rname(so.resource)}</b> ×${so.amount} по <b>${so.price_per_unit}💰</b>
+        <span class="muted">${so.expires_in} тик.</span></span>
+      <button class="act" onclick="promptSO(${so.id},${so.amount})">Сдать</button>
+    </div>`).join("") : `<div class="row"><span class="muted">Пусто</span></div>`;
+
+  h += `<h3>Выставить ордер</h3>
+    <div class="col">
+      <select id="moRes">${Object.keys(state.resources)
+        .map(k => `<option value="${k}">${rname(k)}</option>`).join("")}</select>
+      <input id="moAmt" type="number" placeholder="кол-во" min="1">
+      <input id="moPrice" type="number" placeholder="цена" min="1">
+      <button class="act" onclick="placeOrder()">→ Продать</button>
+    </div>`;
+  return h;
+}
+function placeOrder() {
+  const r = document.getElementById("moRes").value;
+  const a = +document.getElementById("moAmt").value;
+  const p = +document.getElementById("moPrice").value;
+  if (a > 0 && p > 0) send("place_order", {resource:r, amount:a, price:p});
+}
+function promptBuy(oid) {
+  const a = prompt("Сколько купить?"); if (a) send("buy_order",{oid, amount:+a});
+}
+function promptSO(soid, max) {
+  const a = prompt(`Сколько сдать? (макс ${max})`, max);
+  if (a) send("state_order",{soid, amount:+a});
+}
+
+function viewState() {
+  const s = state.state;
+  let h = `<h2>🏛 Государство</h2>
+    <div class="row"><span>Казна</span><span class="val">${s.treasury}💰</span></div>
+    <div class="row"><span>Собрано налогов всего</span><span class="val">${s.total_collected}💰</span></div>
+    <div class="row"><span>Налог на доход</span><span class="val">${(s.income_tax*100).toFixed(1)}%</span></div>
+    <div class="row"><span>Налог с продаж</span><span class="val">${(s.sales_tax*100).toFixed(1)}%</span></div>
+    <div class="row"><span>Налог с зарплаты</span><span class="val">${(s.salary_tax*100).toFixed(1)}%</span></div>`;
+  h += `<h3>🗳 Голосования</h3>`;
+  const canVote = (myP().territories || []).length > 0;
+  if (!canVote) h += `<div class="row"><span class="muted">Только для владельцев территорий</span></div>`;
+  h += state.votes.length ? state.votes.map(v => {
+    const label = {income_tax:"налог на доход", sales_tax:"налог с продаж",
+                    salary_tax:"налог с зарплаты"}[v.topic];
+    return `<div class="row">
+      <div>#${v.id} <b>${label}</b> → ${(v.value*100).toFixed(1)}%
+        <div class="muted">за: ${v.for.length} | против: ${v.against.length} | ${v.closed ? "закрыто" : v.ticks_left+" тик."}</div></div>
+      <div>${!v.closed && canVote ? `
+        <button class="act" onclick="send('cast_vote',{vid:${v.id},side:'for'})">За</button>
+        <button class="act danger" onclick="send('cast_vote',{vid:${v.id},side:'against'})">Против</button>` : ""}</div>
+    </div>`;
+  }).join("") : `<div class="row"><span class="muted">Нет голосований</span></div>`;
+
+  if (canVote) {
+    h += `<h3>Предложить</h3>
+      <div class="col">
+        <select id="vTopic">
+          <option value="income_tax">Налог на доход</option>
+          <option value="sales_tax">Налог с продаж</option>
+          <option value="salary_tax">Налог с зарплаты</option>
+        </select>
+        <input id="vVal" type="number" step="0.01" min="0" max="0.5" placeholder="0.15 = 15%">
+        <button class="act" onclick="proposeVote()">→ Внести</button>
+      </div>`;
+  }
+  return h;
+}
+function proposeVote() {
+  const t = document.getElementById("vTopic").value;
+  const v = +document.getElementById("vVal").value;
+  if (v >= 0 && v <= 0.5) send("propose_vote",{topic:t, value:v});
+}
+
+function viewBank() {
+  const mine = state.loans.filter(l => l.borrower === myName);
+  let h = `<h2>🏦 Банк</h2>
+    <div class="row"><span>Базовый лимит</span><span class="val">5000💰 (+50% с Банком)</span></div>
+    <h3>Мои кредиты</h3>`;
+  h += mine.length ? mine.map(l => `
+    <div class="row"><span>#${l.id}</span>
+      <span>долг <b>${l.total_due}💰</b> • платёж ${l.payment_per_tick}/тик • ${l.ticks_left} тик.</span>
+    </div>`).join("") : `<div class="row"><span class="muted">Нет кредитов</span></div>`;
+  h += `<h3>Взять кредит</h3>
+    <div class="col">
+      <input id="laAmt" type="number" placeholder="сумма" min="100">
+      <select id="laTk">
+        <option value="5">5 тиков (5%)</option>
+        <option value="10">10 тиков (10%)</option>
+        <option value="20">20 тиков (20%)</option>
+      </select>
+      <button class="act" onclick="takeLoan()">→ Взять</button>
+    </div>`;
+  return h;
+}
+function takeLoan() {
+  const a = +document.getElementById("laAmt").value;
+  const t = +document.getElementById("laTk").value;
+  if (a > 0) send("take_loan",{amount:a, ticks:t});
+}
+
+function viewQuests() {
+  const done = myP().completed || [];
+  let h = `<h2>✅ Квесты</h2>`;
+  state.quests.forEach(q => {
+    const isDone = done.includes(q.id);
+    const need = Object.entries(q.need).map(([k,v]) => `${rname(k)} ×${v}`).join(", ");
+    h += `<div class="row">
+      <div>${isDone ? "✔" : "•"} <b>${q.title}</b>
+        <div class="muted">${need} → +${q.reward}💰</div></div>
+      ${!isDone ? `<button class="act" onclick="send('quest',{qid:${q.id}})">Сдать</button>` : ""}
+    </div>`;
+  });
+  return h;
+}
+
+function viewRaids() {
+  let h = `<h2>⚔ PvP рейды</h2>
+    <div class="row"><span>Ваша мощность</span><span class="val">${myPower().toFixed(1)}</span></div>
+    <div class="row"><span>Кулдаун</span><span class="val">5 тиков</span></div>
+    <h3>Цели</h3>`;
+  const targets = state.territories.filter(t => t.owner && t.owner !== myName);
+  const myAl = state.players[myName]?.alliance;
+  h += targets.length ? targets.map(t => {
+    const def = t.businesses.reduce((s,b) => s + b.level * (1 + 0.5*b.workers.length), 0);
+    const ally = myAl && state.players[t.owner]?.alliance === myAl;
+    return `<div class="row">
+      <div>#${t.id} <b>${t.name}</b> (${t.owner})${ally ? ` <span class="badge">союзник</span>` : ""}
+        <div class="muted">защита ${def.toFixed(1)} • шанс ${(myPower()/(myPower()+def+1)*100).toFixed(0)}%</div></div>
+      ${ally ? "" : `<button class="act danger" onclick="send('raid',{tid:${t.id}})">Атаковать</button>`}
+    </div>`;
+  }).join("") : `<div class="row"><span class="muted">Нет целей</span></div>`;
+  return h;
+}
+function myPower() {
+  let p = 0;
+  (myP().territories || []).forEach(tid => {
+    const t = state.territories.find(x => x.id === tid);
+    if (t) t.businesses.forEach(b => p += b.level * (1 + 0.5*b.workers.length));
+  });
+  return p;
+}
+
+function viewAlliance() {
+  const p = myP();
+  let h = `<h2>🤝 Альянс</h2>`;
+  if (!p.alliance) {
+    h += `<div class="row"><span class="muted">Вы не в альянсе</span></div>
+      <h3>Основать</h3>
+      <div class="col">
+        <input id="alTitle" placeholder="Название" maxlength="24">
+        <button class="act" onclick="createAlliance()">→ Создать</button>
+      </div>`;
+    if (state.my_invites.length) {
+      h += `<h3>Приглашения</h3>`;
+      h += state.my_invites.map(t =>
+        `<div class="row"><span>«${t}»</span>
+          <button class="act" onclick="send('accept_alliance',{title:'${t}'})">Вступить</button></div>`).join("");
+    }
+    return h;
+  }
+  const al = state.alliances[p.alliance];
+  if (!al) return h + `<div class="muted">Альянс не найден</div>`;
+  h += `<div class="row"><span>Название</span><span class="val">${al.name}</span></div>
+    <div class="row"><span>Лидер</span><span class="val">${al.leader}</span></div>
+    <div class="row"><span>Казна</span><span class="val">${al.treasury}💰</span></div>
+    <h3>Участники (${al.members.length})</h3>`;
+  al.members.forEach(m => h += `<div class="row"><span>${m}${m===al.leader?" 👑":""}</span>
+    <span class="muted">мощь ${playerPower(m).toFixed(1)}</span></div>`);
+
+  h += `<h3>Взнос в казну</h3>
+    <div class="col">
+      <input id="alAmt" type="number" placeholder="сумма" min="1">
+      <button class="act" onclick="donate()">💝 Внести</button>
+    </div>`;
+
+  if (al.leader === myName) {
+    h += `<h3>Пригласить игрока</h3>
+      <div class="col">
+        <input id="alTarget" placeholder="Имя игрока">
+        <button class="act blue" onclick="invite()">✉ Пригласить</button>
+      </div>
+      <h3>Совместный рейд</h3>
+      <div class="muted">Лидер, ≥2 участника, кулдаун 10 тиков.</div>`;
+    const targets = state.territories.filter(t => t.owner && t.owner !== myName &&
+      !al.members.includes(t.owner));
+    h += targets.length ? targets.map(t =>
+      `<div class="row"><span>#${t.id} ${t.name} (${t.owner})</span>
+        <button class="act danger" onclick="send('alliance_raid',{tid:${t.id}})">⚔⚔ Атаковать</button></div>`
+    ).join("") : `<div class="row"><span class="muted">Нет целей</span></div>`;
+  }
+  h += `<button class="act danger" style="margin-top:10px" onclick="send('leave_alliance')">
+    ${al.leader === myName ? "Распустить" : "Выйти"}</button>`;
+  return h;
+}
+function playerPower(name) {
+  const p = state.players[name];
+  let total = 0;
+  (p?.territories || []).forEach(tid => {
+    const t = state.territories.find(x => x.id === tid);
+    if (t) t.businesses.forEach(b => total += b.level * (1 + 0.5*b.workers.length));
+  });
+  return total;
+}
+function createAlliance() {
+  const t = document.getElementById("alTitle").value.trim();
+  if (t) send("create_alliance",{title:t});
+}
+function invite() {
+  const t = document.getElementById("alTarget").value.trim();
+  if (t) send("invite_alliance",{target:t});
+}
+function donate() {
+  const a = +document.getElementById("alAmt").value;
+  if (a > 0) send("donate_alliance",{amount:a});
+}
+
+// ---------- АНАЛИТИКА ----------
+let analyticsCache = null;
+async function loadAnalytics() {
+  try {
+    const r = await fetch("/api/analytics");
+    analyticsCache = await r.json();
+  } catch(e) { analyticsCache = null; }
+}
+
+function svgLine({series, colors, width=760, height=220}) {
+  const pad = { l: 40, r: 12, t: 12, b: 24 };
+  const W = width - pad.l - pad.r;
+  const H = height - pad.t - pad.b;
+  const all = series.flatMap(s => s.points);
+  if (!all.length) return `<div class="muted">Нет данных</div>`;
+  const minV = Math.min(...all, 0);
+  const maxV = Math.max(...all, 1);
+  const maxLen = Math.max(...series.map(s => s.points.length), 1);
+  const x = i => pad.l + (i/(maxLen-1 || 1)) * W;
+  const y = v => pad.t + H - ((v - minV)/(maxV - minV || 1)) * H;
+
+  const grid = [0,0.25,0.5,0.75,1].map(f => {
+    const gy = pad.t + H*f;
+    const val = Math.round(maxV - (maxV - minV)*f);
+    return `<line x1="${pad.l}" y1="${gy}" x2="${pad.l+W}" y2="${gy}"
+             stroke="#21262d" stroke-dasharray="3 3"/>
+            <text x="${pad.l-4}" y="${gy+3}" fill="#8b949e" font-size="10"
+             text-anchor="end">${val}</text>`;
+  }).join("");
+
+  const paths = series.map((s, idx) => {
+    const color = colors[idx % colors.length];
+    const d = s.points.map((p, i) => `${i===0?"M":"L"}${x(i).toFixed(1)},${y(p).toFixed(1)}`).join(" ");
+    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2"/>`;
+  }).join("");
+
+  const legend = series.map((s, idx) =>
+    `<span style="color:${colors[idx % colors.length]};margin-right:12px;font-size:12px">● ${s.name}</span>`
+  ).join("");
+
+  return `<div style="overflow-x:auto">
+    <svg viewBox="0 0 ${width} ${height}" style="min-width:520px;max-width:100%;height:auto">
+      ${grid}${paths}
+    </svg>
+    <div style="margin-top:4px">${legend}</div>
+  </div>`;
+}
+
+function viewAnalytics() {
+  if (!analyticsCache) {
+    loadAnalytics().then(() => render());
+    return `<h2>📈 Аналитика</h2><div class="muted">Загрузка…</div>`;
+  }
+  const a = analyticsCache;
+  const palette = ["#58a6ff","#7ee787","#f85149","#d2a8ff","#ffa657","#79c0ff"];
+
+  let h = `<h2>📈 Аналитика экономики</h2>`;
+  h += `<h3>Курсы ресурсов</h3>`;
+  const priceSeries = Object.keys(a.prices).map(k => ({
+    name: a.resource_names[k], points: a.prices[k]
+  }));
+  h += svgLine({series: priceSeries, colors: palette});
+
+  h += `<h3>Казна vs Общее богатство игроков</h3>`;
+  h += svgLine({
+    series: [
+      { name:"Казна", points:a.treasury },
+      { name:"Богатство игроков", points:a.total_wealth }
+    ],
+    colors:["#d2a8ff","#7ee787"]
+  });
+
+  h += `<h3>Мощность игроков</h3>`;
+  const powerSeries = Object.entries(a.power)
+    .filter(([n,v]) => v && v.length)
+    .map(([n,v]) => ({ name:n, points:v }));
+  h += powerSeries.length ? svgLine({series: powerSeries, colors: palette})
+                          : `<div class="muted">Пока нет данных</div>`;
+
+  h += `<h3>Богатство игроков</h3>`;
+  const wealthSeries = Object.entries(a.wealth)
+    .filter(([n,v]) => v && v.length)
+    .map(([n,v]) => ({ name:n, points:v }));
+  h += wealthSeries.length ? svgLine({series: wealthSeries, colors: palette})
+                           : `<div class="muted">Пока нет данных</div>`;
+
+  h += `<h3>История голосований</h3>`;
+  h += a.votes.length ? a.votes.slice().reverse().map(v => {
+    const label = {income_tax:"налог на доход", sales_tax:"налог с продаж",
+                   salary_tax:"налог с зарплаты"}[v.topic] || v.topic;
+    return `<div class="row">
+      <span>Тик ${v.tick}: <b>${label}</b> → ${(v.value*100).toFixed(1)}%</span>
+      <span style="color:${v.passed ? "#7ee787":"#f85149"}">
+        ${v.passed?"принято":"отклонено"} (${v.for}/${v.against})
+      </span></div>`;
+  }).join("") : `<div class="row"><span class="muted">Пока нет голосований</span></div>`;
+
+  h += `<h3>Последние рейды</h3>`;
+  h += a.raids.length ? a.raids.slice().reverse().map(r => `
+    <div class="row">
+      <span>Тик ${r.tick}: <b>${r.attacker}</b> → «${r.territory}» (${r.defender})</span>
+      <span style="color:${r.success ? "#f85149":"#7ee787"}">
+        ${r.success ? `успех, +${r.loot}💰` : `провал, штраф ${r.fine}💰`}
+      </span>
+    </div>`).join("") : `<div class="row"><span class="muted">Рейдов не было</span></div>`;
+
+  return h;
+}
+
+// ---------- БОТЫ ----------
+function viewBots() {
+  const bots = Object.values(state.players).filter(p => p.is_bot);
+  let h = `<h2>🤖 ИИ-граждане</h2>
+    <div class="row"><span>Всего ботов</span><span class="val">${bots.length}</span></div>
+    <div class="row"><span>Тик ботов</span><span class="val">каждые 30 сек</span></div>
+    <h3>Список</h3>`;
+  if (!bots.length) return h + `<div class="row"><span class="muted">Ботов нет</span></div>`;
+  const stratName = {trader:"📜 Торговец", builder:"🏗 Строитель",
+                     aggressive:"⚔ Пират", hoarder:"💰 Скопидом"};
+  bots.forEach(b => {
+    const terr = b.territories.length;
+    const biz = b.territories.reduce((s,tid) => {
+      const t = state.territories.find(x => x.id === tid);
+      return s + (t ? t.businesses.length : 0);
+    }, 0);
+    h += `<div class="card">
+      <div class="flex">
+        <div><b>${b.name}</b> <span class="badge">${stratName[b.strategy]||b.strategy}</span></div>
+        <div class="val">${b.balance}💰</div>
+      </div>
+      <div class="muted" style="margin-top:6px">
+        Территорий: ${terr} • Бизнесов: ${biz} • Мощность: ${(b.power||0).toFixed(1)}
+        ${b.alliance ? ` • 🤝 ${b.alliance}` : ""}
+      </div>
+      <div style="margin-top:6px;font-size:11px;color:#8b949e">
+        Ресурсов: ${Object.entries(b.resources||{})
+          .map(([k,v])=>`${rname(k)} ${v}`).join(", ") || "нет"}
+      </div>
+    </div>`;
+  });
+  h += `<h3>Что делают боты</h3>
+    <div class="muted">
+      • <b>Торговец</b> — выставляет излишки, скупает дешёвое, строит рынок.<br>
+      • <b>Строитель</b> — активно апгрейдит, ставит школы/банки.<br>
+      • <b>Пират</b> — создаёт свой альянс, атакует слабые цели.<br>
+      • <b>Скопидом</b> — копит на крупные территории, повышает налоги.<br>
+    </div>`;
+  return h;
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  const t = localStorage.getItem(TOKEN_KEY);
+  if (t) connect(t);
+  setInterval(() => { if (tab === "analytics") loadAnalytics().then(render); }, 15000);
+});
+document.getElementById("passInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") doAuth("login");
+});
+</script>
+</body>
+</html>
